@@ -1,0 +1,122 @@
+<html>
+<head>
+	<link rel="stylesheet" media="all" href="jvmp/jquery-jvectormap-2.0.4.css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script src="jvmp/jquery-jvectormap-2.0.4.min.js"></script>
+	<script src="jvmp/jquery-jvectormap-world-mill-en.js"></script>
+	<script src="https://maps.googleapis.com/maps/api/js?key=_YOUR_GAPI_KEY_" async defer></script>
+</head>
+<body>
+<script>
+function geocodeAddress(address) {
+    // We make a new promise: we promise the string 'address' 
+	var geocodeAPI = new Promise(
+		// The resolver function is called with the ability to resolve or
+		// reject the promise
+		function(resolve, reject) {
+			// Call geocode api asynchronously
+			var geocoder =  new google.maps.Geocoder();
+			console.log("geocode call for: "+address);
+			geocoder.geocode({'address': address}, function(results, status) {
+				if (status === google.maps.GeocoderStatus.OK) {
+					console.log("geocode " + address + " (lat,long) is : " + results[0].geometry.location.lat() + " " +results[0].geometry.location.lng()); 
+					var coord=[results[0].geometry.location.lat(),results[0].geometry.location.lng()];
+					resolve(coord);
+				} else {
+					reject(status);
+				}
+			});
+		});
+	// We define what to do when the promise is resolved/fulfilled with the then() call,
+	// and the catch() method defines what to do if the promise is rejected.
+	geocodeAPI.then(
+		// Log the fulfillment value
+		function(val) {
+			console.log("geocode promise fulfilled with:" + val);
+			console.log("geocode --		 for city:" + address);
+		})
+	.catch(
+		// Log the rejection reason
+		function(reason) {
+			  console.log('Geocode was not successful for the following reason: ' + reason);
+		});
+	return geocodeAPI;
+}
+
+function drawJVMapByCity() {
+	//
+	var cityNames = ["Athens","Milan","Patra"];                  // fixed value only for test
+	var cityPlayer = [23,125,3];                                 // fixed value only for test
+	var cityCoord=[];//[[41.90,12.45],[43.73,7.41],[-0.52,166.93]]; fixed value only for test
+	var promises = [];
+	var maxPlayer = Math.max.apply(Math,cityPlayer);
+	var minPlayer = Math.min.apply(Math,cityPlayer);
+	for (var i in cityNames) {
+		promises.push(geocodeAddress(cityNames[i])); 	// push the Promises to our array
+	}
+	Promise.all(promises).then(function(dataArr) {		// process only when all Promises are fullfilled
+		var j=0;
+		dataArr.forEach(function(data) {
+			cityCoord[j]=[];
+			cityCoord[j][0]=data[0];
+			cityCoord[j][1]=data[1];
+			j++;
+		});
+		console.log("JSON City geocode list:" + cityCoord.toString());
+		//
+		// here to drawJVMapB
+		//
+		$('#world-map').vectorMap({
+		map: 'world_mill_en',
+		normalizeFunction: 'polynomial',
+					backgroundColor: "transparent",
+			regionStyle: {
+			  initial: {
+				fill: '#e4e4e4',
+				"fill-opacity": 1,
+				stroke: 'none',
+				"stroke-width": 0,
+				"stroke-opacity": 1
+			  }
+			},
+		  markers: cityCoord,
+		  series: {
+			markers: [{
+			  attribute: 'fill',
+			  scale: ['#DEEBF7', '#08519C'],
+			  values: cityPlayer,
+			  min: minPlayer,
+			  max: maxPlayer
+			},{
+			  attribute: 'r',
+			  scale: [5, 13],
+			  values: cityPlayer,
+			  min: minPlayer,
+			  max: maxPlayer
+			}]
+		  },
+		  onMarkerTipShow: function(event, label, index){
+			label.html(
+			  '<b>'+cityNames[index]+'</b><br/>'+
+			  '<b>Players: </b>'+cityPlayer[index]+'</br>'
+			);
+		  }
+	  });
+	  	//
+	// set initial foucus
+	//$('#world-map').vectorMap('set', 'focus', {region: 'IT'});
+	$('#world-map').vectorMap('set', 'focus', {scale: 5, lat:43.73,lng:7.41});
+	}).catch(function(err) {
+		console.log(err);
+	});
+
+};
+ 
+</script>
+ <button onclick="javascript:drawJVMapByCity();">Click to draw map with geocoded cities (see log console for result)</button>   
+
+ My Map <br/>
+<div id="world-map" style="width:900px; height:500;"></div> 
+</body>
+</html>
+
